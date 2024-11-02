@@ -80,6 +80,10 @@ router.get("/user/connection/accepted", authenticateUser, async (req, res) => {
 router.get("/feed", authenticateUser, async (req, res) => {
   try {
     const loggedInUser = req.user;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const skip = (page - 1) * limit;
 
     const connectionRequests = await ConnectionRequest.find({
       $or: [{ toUserId: loggedInUser._id }, { fromUserId: loggedInUser._id }],
@@ -92,17 +96,18 @@ router.get("/feed", authenticateUser, async (req, res) => {
       hideUserFromFeed.add(connection.toUserId);
     });
 
-    console.log(hideUserFromFeed);
-
     const user = await User.find({
       $and: [
         { _id: { $nin: Array.from(hideUserFromFeed) } },
         { _id: { $ne: loggedInUser._id } },
       ],
-    }).select("firstName lastName about age skills");
+    })
+      .select("firstName lastName about age skills")
+      .limit(limit)
+      .skip(skip);
 
     res.status(200).send({ message: "Feed", data: user });
-  } catch (error) { 
+  } catch (error) {
     res.status(400).send({ message: "Failed to get feed", error: error });
   }
 });
